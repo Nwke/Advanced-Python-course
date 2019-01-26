@@ -1,0 +1,6 @@
+======= Log session is start ======= 
+1 do_something, None, 1548506158.7533784, (1, 2), {} 
+2 do_something, None, 1548506158.761957, (), {} 
+======= Log session is start ======= 
+1 do_something, None, 1548506162.543338, (1, 2), {} 
+2 do_something, None, 1548506162.5543315, (), {} 
