@@ -1,1 +1,1 @@
-# Advanced-Python-course
+# Advanced Python course
