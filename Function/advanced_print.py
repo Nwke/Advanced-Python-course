@@ -34,6 +34,7 @@ def advanced_print(*args, start='', max_line=10, in_file=False, sep=' ', end='\n
             file.write(res_str)
 
 
-advanced_print('vanya', 'vasya', 'milenasssssssssv', in_file=True, file='text.txt', sep='*', start='*', end='*')
-advanced_print('hello world')
-advanced_print('We will happy')
+if __name__ == '__main__':
+    advanced_print('vanya', 'vasya', 'milenasssssssssv', in_file=True, file='text.txt', sep='*', start='*', end='*')
+    advanced_print('hello world')
+    advanced_print('We will happy')

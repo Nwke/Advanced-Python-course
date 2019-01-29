@@ -6,3 +6,7 @@
 2 do_something, None, 1548506162.5543315, (), {} 
 ======= Log session is start ======= 
 1 advanced_print, None, 1548754769.5748897, (5,), {} 
+======= Log session is start ======= 
+1 advanced_print, None, 1548784143.0292523, (5,), {} 
+======= Log session is start ======= 
+1 advanced_print, None, 1548784149.4312096, (5,), {} 
