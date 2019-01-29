@@ -4,3 +4,5 @@
 ======= Log session is start ======= 
 1 do_something, None, 1548506162.543338, (1, 2), {} 
 2 do_something, None, 1548506162.5543315, (), {} 
+======= Log session is start ======= 
+1 advanced_print, None, 1548754769.5748897, (5,), {} 

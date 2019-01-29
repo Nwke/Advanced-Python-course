@@ -18,6 +18,3 @@ def logger(old_function):
 @logger
 def do_something(*args, **kwargs):
     print(args, kwargs)
-
-
-do_something(1, 2)
