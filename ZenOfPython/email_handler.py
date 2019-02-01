@@ -6,6 +6,10 @@ from email.MIMEMultipart import MIMEMultipart
 
 
 class MailHandler:
+    letters_current_header = 0
+    last_letter = -1
+    raw_mail = 1
+
     def __init__(self, login, password, recipients, subject, allowed_header, GMAIL_SMTP="smtp.gmail.com",
                  GMAIL_IMAP="imap.gmail.com"):
         self.login = login
@@ -13,10 +17,6 @@ class MailHandler:
         self.recipients = recipients
         self.subject = subject
         self.allowed_header = allowed_header
-
-        self.letters_current_header = 0
-        self.last_letter = -1
-        self.raw_mail = 1
 
         self.GMAIL_SMTP = GMAIL_SMTP
         self.GMAIL_IMAP = GMAIL_IMAP
@@ -56,12 +56,12 @@ class MailHandler:
         criterion = f'(HEADER Subject "{allowed_header}")'
 
         _, received_letters = mail_listening.uid('search', None, criterion)
-        assert received_letters[self.letters_current_header], 'There are no letters with current header'
+        assert received_letters[MailHandler.letters_current_header], 'There are no letters with current header'
 
-        latest_email_uid = received_letters[self.letters_current_header].split()[self.last_letter]
+        latest_email_uid = received_letters[MailHandler.letters_current_header].split()[MailHandler.last_letter]
         _, received_letters = mail_listening.uid('fetch', latest_email_uid, '(RFC822)')
 
-        raw_email = received_letters[self.letters_current_header][self.raw_mail]
+        raw_email = received_letters[MailHandler.letters_current_header][MailHandler.raw_mail]
         email_message = email.message_from_string(raw_email)
         print(email_message)
         mail_listening.logout()  # end recieve
