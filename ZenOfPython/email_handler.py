@@ -68,7 +68,8 @@ class MailHandler:
 
         raw_email = received_letters[self.letters_current_header][self.raw_mail]
         email_message = email.message_from_string(raw_email)
-
+        
+        print(email_message)
         mail_listening.logout()  # end recieve
 
 
@@ -81,7 +82,7 @@ if __name__ == '__main__':
         email_smtp = "smtp.gmail.com"
 
         mail_handler = MailHandler(login=login, password=password,
-                                   header=header, email_iap=email_iap,
+                                   allowed_header=header, email_iap=email_iap,
                                    email_smtp=email_smtp)
 
 
