@@ -1,11 +1,11 @@
 import email
 import smtplib
 import imaplib
-from email.MIMEText import MIMEText
-from email.MIMEMultipart import MIMEMultipart
 
-DEFAULT_SMTP = 'smtp.gmail.com'
-DEFAULT_IMAP = 'imap.gmail.com'
+from email.message import EmailMessage
+
+DEFAULT_SMTP = 'smtp.yandex.ru'
+DEFAULT_IMAP = 'imap.yandex.ru'
 
 
 class MailHandler:
@@ -13,8 +13,7 @@ class MailHandler:
     last_letter = -1
     raw_mail = 1
 
-    def __init__(self, login, password, allowed_header, email_smtp=DEFAULT_SMTP,
-                 email_iap=DEFAULT_IMAP):
+    def __init__(self, login, password, allowed_header, email_smtp=DEFAULT_SMTP, email_iap=DEFAULT_IMAP):
         self.login = login
         self.password = password
         self.allowed_header = allowed_header
@@ -22,30 +21,25 @@ class MailHandler:
         self.email_iap = email_iap
 
     def prepare_letter(self, message, subject, recipients):
-        our_letter = MIMEMultipart()
+        our_letter = EmailMessage()
         our_letter['From'] = self.login
         our_letter['To'] = ', '.join(recipients)
         our_letter['Subject'] = subject
-        our_letter.attach(MIMEText(message))
+        our_letter.set_content(message)
 
         return our_letter
 
     def send_mail(self, message, subject, recipients):
-        our_letter = self.prepare_letter(message=message, subject=subject,
-                                         recipients=recipients)
+        our_letter = self.prepare_letter(message=message, subject=subject, recipients=recipients)
 
-        mail_system = smtplib.SMTP(self.email_smtp, 587)
-        # identify ourselves to smtp gmail client
-        mail_system.ehlo()
-        # secure our email with tls encryption
-        mail_system.starttls()
-        # re-identify ourselves as an encrypted connection
-        mail_system.ehlo()
+        mail_server = smtplib.SMTP(self.email_smtp, 587)
+        mail_server.ehlo()
+        mail_server.starttls()
+        mail_server.ehlo()
+        mail_server.login(self.login, self.password)
+        mail_server.sendmail(self.login, recipients, our_letter.as_bytes())
 
-        mail_system.login(self.login, self.password)
-        mail_system.sendmail(self.login, mail_system, our_letter.as_string())
-
-        mail_system.quit()  # send end
+        mail_server.quit()
 
     def receive_mail(self):
         mail_listening = imaplib.IMAP4_SSL(self.email_iap)
@@ -57,33 +51,31 @@ class MailHandler:
         criterion = f'(HEADER Subject "{allowed_header}")'
 
         _, received_letters = mail_listening.uid('search', None, criterion)
-        assert received_letters([self.letters_current_header],
-                                'There are no letters with current header')
+        assert received_letters[self.letters_current_header], 'There are no letters with current header'
 
-        latest_email_uid = \
-            received_letters[self.letters_current_header].split()[
-                self.last_letter]
-        _, received_letters = mail_listening.uid('fetch', latest_email_uid,
-                                                 '(RFC822)')
+        latest_email_uid = received_letters[self.letters_current_header].split()[self.last_letter]
+        _, received_letters = mail_listening.uid('fetch', latest_email_uid, '(RFC822)')
 
         raw_email = received_letters[self.letters_current_header][self.raw_mail]
-        email_message = email.message_from_string(raw_email)
-        
-        print(email_message)
+        email_message = email.message_from_bytes(raw_email)
+
         mail_listening.logout()  # end recieve
+        return email_message
+
+
+def main():
+    login = 'example@mail.ru'
+    password = 'qwerty'
+    header = None
+    email_smtp = 'smtp.yandex.ru'
+    email_iap = 'imap.yandex.ru'
+
+    mail_system = MailHandler(login=login, password=password, allowed_header=header, email_iap=email_iap,
+                              email_smtp=email_smtp)
+
+    mail_system.send_mail(message='Hello, world', subject='Test message', recipients=['d.blinkovv@yandex.ru'])
+    print(mail_system.receive_mail())
 
 
 if __name__ == '__main__':
-    def main():
-        login = 'login@gmail.com'
-        password = 'qwerty'
-        header = None
-        email_iap = "imap.gmail.com"
-        email_smtp = "smtp.gmail.com"
-
-        mail_handler = MailHandler(login=login, password=password,
-                                   allowed_header=header, email_iap=email_iap,
-                                   email_smtp=email_smtp)
-
-
     main()
