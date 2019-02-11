@@ -9,7 +9,7 @@ test_cfg = config.Config()
 class TestApp(unittest.TestCase):
     def setUp(self):
         self.test_cfg = config.Config()
-        
+
         self.init_env_in_windows_part_cases = ['.\\', 'C:\\']
         self.init_env_in_not_windows_part_cases = ['./', '~/', '~/.{}'.format(APP_NAME), '/etc/{}'.format(APP_NAME)]
 
