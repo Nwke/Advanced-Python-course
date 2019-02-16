@@ -54,13 +54,8 @@ def find_by_name(name, db):
     return db.song.find({'artist': regexp}).sort([('price', pymongo.ASCENDING)])
 
 
-def event_by_time(db):
-    year = datetime.now().year
-
-    start_search = (f'{year}-07-01')
-    end_search = (f'{year}-07-30')
-
-    return db.song.find({'date': {'$gte': start_search, '$lte': end_search}})
+def event_by_time(db, start_time, end_time):
+    return db.song.find({'date': {'$gte': start_time, '$lte': end_time}})
 
 
 if __name__ == '__main__':
@@ -69,5 +64,9 @@ if __name__ == '__main__':
     for event in list(find_cheapest(songs_db)):
         print(event)
 
-    for event in list(event_by_time(songs_db)):
+    year = datetime.now().year
+    start = f'{year}-07-01'
+    end = f'{year}-07-30'
+
+    for event in list(event_by_time(songs_db, start, end)):
         print(event)
