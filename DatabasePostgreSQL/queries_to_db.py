@@ -31,9 +31,9 @@ def get_students(course_id):  # возвращает студентов опре
 
 
 def add_students(course_id, students):  # создает студентов и
-    for student in students:
-        with pg.connect(dbname='netology_db', user='denis') as conn:
-            with conn.cursor() as cur:
+    with pg.connect(dbname='netology_db', user='denis') as conn:
+        with conn.cursor() as cur:
+            for student in students:
                 add_student(student)
                 id_last_student = _get_id_last_record()
                 cur.execute("""insert into student_course (student_id, course_id) values (%s, %s)""",
