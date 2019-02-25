@@ -1,4 +1,6 @@
 import psycopg2 as pg
+import sys
+
 from config import DB_NAME, USER
 
 
@@ -34,6 +36,15 @@ def get_students(course_id):  # возвращает студентов опре
 def add_students(course_id, students):
     with pg.connect(dbname=DB_NAME, user=USER) as conn:
         with conn.cursor() as cur:
+
+            cur.execute("""select * from course where course.id = (%s)""", (str(course_id),))
+            if cur.fetchone() is None:
+                print(
+                    f'Error in function {add_students.__name__}: course with id as'
+                    f' parameter of functuon "course_id" does not exist',
+                    file=sys.stderr)
+                return -1
+
             for student in students:
                 add_student(student, cursor=cur)
                 id_last_student = cur.fetchone()[0]
@@ -65,3 +76,4 @@ if __name__ == "__main__":
     add_student({'name': 'Vanya', 'gpa': 9, 'birth': '1935-03-03'})
 
     add_students(1, [{'name': 'Evgen', 'gpa': 7, 'birth': '2995-03-03'}])
+    add_students(123, [{'name': 'Evgen', 'gpa': 7, 'birth': '2995-03-03'}])
