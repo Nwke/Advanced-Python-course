@@ -14,7 +14,7 @@ def _convert(data):
     month, day = data.split('.')[::-1]
     year = datetime.now().year
 
-    return f'{year}-{month}-{day}'
+    return datetime.strptime(f'{year}-{month}-{day}', '%Y-%m-%d').date()
 
 
 def read_data(csv_file, db):
@@ -49,7 +49,7 @@ def find_by_name(name, db):
     Search field artist by substring
     """
 
-    regexp = re.compile(rf'\w*{name}\w*')
+    regexp = re.compile(rf'\w*{re.escape(name)}\w*')
 
     return db.song.find({'artist': regexp}).sort([('price', pymongo.ASCENDING)])
 
