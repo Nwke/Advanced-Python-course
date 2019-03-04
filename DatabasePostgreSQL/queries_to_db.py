@@ -1,7 +1,7 @@
 import psycopg2 as pg
 import sys
 
-from config import DB_NAME, USER
+from config import DB_NAME, USER, USER_ID, ERROR_COURSE_EXIST
 
 
 def create_db():
@@ -39,35 +39,27 @@ def add_students(course_id, students):
 
             cur.execute("""select * from course where course.id = (%s)""", (str(course_id),))
             if cur.fetchone() is None:
-                print(
-                    f'Error in function {add_students.__name__}: course with id as'
-                    f' parameter of functuon "course_id" does not exist',
-                    file=sys.stderr)
-                return -1
+                message = f'course with id as {course_id} does not exist'
+                return (ERROR_COURSE_EXIST, message)
 
             for student in students:
-                add_student(student, cursor=cur)
-                id_last_student = cur.fetchone()[0]
+                id_last_student = add_student(student)
                 cur.execute("""insert into student_courses (student_id, course_id) values (%s, %s)""",
                             (id_last_student, course_id))
 
 
-def add_student(student, cursor=None):
-    if cursor is not None:
-        cursor.execute("""insert into student (name, gpa, birth) values (%s, %s, %s) RETURNING id;""",
-                       (student['name'], student['gpa'], student['birth']))
-    else:
-        with pg.connect(dbname=DB_NAME, user=USER) as conn:
-            with conn.cursor() as cur:
-                cur.execute("""insert into student (name, gpa, birth) values (%s, %s, %s) RETURNING id;""",
-                            (student['name'], student['gpa'], student['birth']))
+def add_student(student):
+    with pg.connect(dbname=DB_NAME, user=USER) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""insert into student (name, gpa, birth) values (%s, %s, %s) RETURNING id;""",
+                        (student['name'], student['gpa'], student['birth']))
+            return cur.fetchone()[USER_ID]
 
 
 def get_student(student_id):
     with pg.connect(dbname=DB_NAME, user=USER) as conn:
         with conn.cursor() as cur:
             cur.execute("""select * from student where student.id = (%s)""", str(student_id))
-            return cur.fetchone()
 
 
 if __name__ == "__main__":
@@ -76,4 +68,4 @@ if __name__ == "__main__":
     add_student({'name': 'Vanya', 'gpa': 9, 'birth': '1935-03-03'})
 
     add_students(1, [{'name': 'Evgen', 'gpa': 7, 'birth': '2995-03-03'}])
-    add_students(123, [{'name': 'Evgen', 'gpa': 7, 'birth': '2995-03-03'}])
+    add_students(1, [{'name': 'Evgen', 'gpa': 7, 'birth': '2995-03-03'}])
