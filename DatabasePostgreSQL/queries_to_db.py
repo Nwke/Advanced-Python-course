@@ -23,7 +23,7 @@ def create_db():
             course_id integer REFERENCES course(id)  ON DELETE CASCADE);""")
 
 
-def get_students(course_id):  # возвращает студентов определенного курса
+def get_students(course_id):  # return students from particular course
     with pg.connect(dbname=DB_NAME, user=USER) as conn:
         with conn.cursor() as cur:
             cur.execute("""      
