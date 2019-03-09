@@ -14,6 +14,7 @@ class VkMACHINERY:
         :param dict params_of_query: additional params for request
         :return: result of requests.get(...).json()
         """
+
         return requests.get(f'https://api.vk.com/method/{method}', params=params_of_query).json()
 
     @staticmethod
@@ -25,6 +26,7 @@ class VkMACHINERY:
         :param headers: header for send request to vk API (like token and so on)
         :return: List of dict of data similar people
         """
+
         params_of_request = {'count': config['count_for_search'],
                              'fields': f'sex={(config["sex"] % 2) + 1},city={config["city"]},'
                              f'age_from={config["desired_age_from"]},age_to={config["desired_age_to"]}',
@@ -44,6 +46,7 @@ class VkMACHINERY:
         :return: List of dict of extended data for future initialization
          Tinder Users. Closed profiles will be dropped.
         """
+
         opened_tinder_user_ids = []
 
         for searched_user in searched_users:

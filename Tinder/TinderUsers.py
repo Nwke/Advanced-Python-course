@@ -229,7 +229,7 @@ class MainUser(TinderUser):
         self.request_header_for_main_user = {
             'access_token': self.user_token,
             'v': VERSION_VK_API,
-            'user_token': None
+
         }
 
         self._init_main_user()
@@ -252,11 +252,9 @@ class MainUser(TinderUser):
         It get users's token and put it in field of instance
         """
 
-        # todo: there is a mock
-        print(f'get on this link\nand give please browser string\n{OAUTH_LINK}')
-
-        link_after_oauth = 'https://oauth.vk.com/blank.html#access_token=8bd71d2cd09e82352b9c1d0e43d8288c103c33b9' \
-                           '4d1a5a5e32cd693a273a7b08f4b2480dd66127cff93a1&expires_in=86400&user_id=211809712'
+        link_after_oauth = input(f'1.Follow this link: {OAUTH_LINK}\n'
+                                 '2.Confirm the intentions\n'
+                                 '3.Copy the address of the browser string and paste it here, please')
 
         return re.sub(reg_exp_pattern_access_token, r'\3', link_after_oauth)
 
@@ -306,8 +304,8 @@ class MainUser(TinderUser):
         params_of_request.update(self.request_header_for_main_user)
 
         items_of_request = 0
-        return VkMACHINERY.send_request(method='users.get', params_of_query=params_of_request)['response'][
-            items_of_request]
+        return VkMACHINERY.send_request(method='users.get',
+                                        params_of_query=params_of_request)['response'][items_of_request]
 
     def update_search_offset(self) -> NoReturn:
         """
