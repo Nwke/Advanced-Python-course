@@ -2,19 +2,21 @@ from Diploma.VkMACHINERY import VkMACHINERY
 from Diploma.utils import pattern_access_token
 from Diploma import POINT_OF_AGE, POINT_OF_MUSIC, POINT_OF_BOOKS, POINT_OF_FRIEND_UNIT, POINT_OF_GROUP_UNIT, OAUTH_LINK
 from Diploma import SERVICE_TOKEN, VERSION_VK_API
+from Diploma import DB_USER, DB_NAME
 
 from datetime import datetime
-
-import weakref
-import re
 from typing import Dict, List, AnyStr
+
+import re
+import psycopg2 as pg
 
 
 class TinderUser:
-    _instances_of_tinder_user = set()
+    # todo: there is a memory leak
+    _instances_of_tinder_user = []
 
     def __init__(self, init_obj=None):
-        self._instances_of_tinder_user.add(weakref.ref(self))
+        self._instances_of_tinder_user.append(self)
         self._SERVICE_TOKEN = SERVICE_TOKEN
 
         self.first_name = None
@@ -36,7 +38,7 @@ class TinderUser:
 
         self.score = 0
 
-        self.default_request_headers = {
+        self.request_header_for_tinder_user = {
             'access_token': self._SERVICE_TOKEN,
             'v': VERSION_VK_API,
         }
@@ -46,7 +48,7 @@ class TinderUser:
 
     def init_tinder_user_from_obj(self, obj: Dict):
         self.tinder_user_id = obj['id']
-        self.default_request_headers['user_id'] = self.tinder_user_id
+        self.request_header_for_tinder_user['user_id'] = self.tinder_user_id
 
         self.first_name = obj['first_name']
         self.last_name = obj.get('last_name', 'closed')
@@ -57,8 +59,8 @@ class TinderUser:
         self.books = obj.get('books', 'closed')
         self.music = obj.get('music', 'closed')
 
-        self.friends = self.get_friend_list(param=self.default_request_headers)
-        self.groups = self.get_groups(param=self.default_request_headers)
+        self.friends = self.get_friend_list(param=self.request_header_for_tinder_user)
+        self.groups = self.get_groups(param=self.request_header_for_tinder_user)
 
         try:
             self.age = int(int(datetime.now().year)) - int(obj['bdate'][-4:])
@@ -106,75 +108,87 @@ class TinderUser:
 
     def _get_photos_of_user(self):
         params = {'owner_id': self.tinder_user_id, 'album_id': 'profile', 'extended': 1}
-        params.update(self.default_request_headers)
+        params.update(self.request_header_for_tinder_user)
 
+        print(VkMACHINERY.send_request(method='photos.get', params_of_query=params))
         photos = VkMACHINERY.send_request(method='photos.get', params_of_query=params)['response']['items']
-        photos.sort(key=lambda ph: int(ph['likes']['count']))
+        photos.sort(key=lambda photo: int(photo['likes']['count']))
 
-        SIZE = 0
+        size = 0
         for ph in photos[-3:]:
-            self.top3_photos.append(ph['sizes'][SIZE]['url'])
+            self.top3_photos.append(ph['sizes'][size]['url'])
 
-    def _get_user_in_dict(self):
+    def get_user_in_dict(self):
         self._get_photos_of_user()
 
         return {
             'first_name': self.first_name,
             'last_name': self.last_name,
-            'vk_link': f'https://vk.com/{self.tinder_user_id}',
+            'vk_link': f'https://vk.com/id{self.tinder_user_id}',
             'photos': self.top3_photos
         }
 
     @classmethod
-    def get_tinder_users(cls):
-        dead = set()
-        for ref in cls._instances_of_tinder_user:
-            obj = ref()
-            if obj is not None:
-                yield obj
-            else:
-                dead.add(ref)
-        cls._instances_of_tinder_user -= dead
+    def get_tinder_users_for_one_round(cls, count):
+        return cls._instances_of_tinder_user[-count:]
 
     def __repr__(self):
         return f'Tinder User: name: {self.first_name}, uid: {self.tinder_user_id}'
 
 
 class MainUser(TinderUser):
-    def __init__(self):
+
+    def __init__(self, count_for_search=15):
         super().__init__()
 
         self.user_token = None
-        self.user_id = None
         self.screen_name = None
         self.desired_age_from = None
         self.desired_age_to = None
+        self.count_for_search = count_for_search
+        self.offset_for_search = None
 
-        self.default_params_of_request = {
+        self.request_header_for_main_user = {
             'access_token': self.user_token,
             'v': VERSION_VK_API,
             'user_token': None
         }
 
-        self.init_main_user()
+        self._init_main_user()
 
-    def get_access_token(self):
+    def _init_main_user(self):
+        self._set_token()
+        profile_info = self._get_profile_info()
+
+        self._init_default_params(profile_info)
+        self._set_additional_params()
+
+    def _get_access_token(self):
+        # todo: there is a mock
         print(f'get on this link\nand give please browser string\n{OAUTH_LINK}')
 
-        link_after_oauth = 'https://oauth.vk.com/blank.html#access_token=cc65b07c2bf7da48d2f71f36870d5b0052b95e' \
-                           '9d36af95e3172829210cf052cf901f129149eb266df626f&expires_in=86400&user_id=211809712'
+        link_after_oauth = 'https://oauth.vk.com/blank.html#access_token=8bd71d2cd09e82352b9c1d0e43d8288c103c33b9' \
+                           '4d1a5a5e32cd693a273a7b08f4b2480dd66127cff93a1&expires_in=86400&user_id=211809712'
 
         return re.sub(pattern_access_token, r'\3', link_after_oauth)
 
-    def init_main_user(self):
-        self.user_token = self.get_access_token()
-        self.default_params_of_request['access_token'] = self.user_token
+    def _set_token(self):
+        self.user_token = self._get_access_token()
+        self.request_header_for_main_user['access_token'] = self.user_token
 
-        params_of_request = {'fields': 'sex,bdate,city,country,activities,interests,music,movies,books'}
-        params_of_request.update(self.default_params_of_request)
+    def _set_additional_params(self):
+        print('There are search settings save only for session')
+        self.desired_age_from = int(input('Give number for desired min of search age: '))
+        self.desired_age_to = int(input('Give number for desired max of search age: '))
 
-        profile_info = VkMACHINERY.send_request(method='users.get', params_of_query=params_of_request)['response'][0]
+        with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""SELECT current_offset FROM _tinder_service_information WHERE id=(%s)""", ('1',))
+                self.offset_for_search = int(cur.fetchone()[0])
+                print(self.offset_for_search, '<- SET INITIAL OFFSET SEARCH')
 
+    def _init_default_params(self, profile_info):
+        self.tinder_user_id = profile_info['id']
         self.first_name = profile_info['first_name']
         self.last_name = profile_info['last_name']
         self.sex = profile_info['sex']
@@ -184,22 +198,35 @@ class MainUser(TinderUser):
         self.music = profile_info['music']
         self.books = profile_info['books']
 
-        self.friends = self.get_friend_list(param=self.default_params_of_request)
-        self.groups = self.get_groups(param=self.default_params_of_request)
+        self.friends = self.get_friend_list(param=self.request_header_for_main_user)
+        self.groups = self.get_groups(param=self.request_header_for_main_user)
 
-    def users_search(self):
-        age_from = 15
-        age_to = 25
+    def _get_profile_info(self):
+        params_of_request = {'fields': 'sex,bdate,city,country,activities,interests,music,movies,books'}
+        params_of_request.update(self.request_header_for_main_user)
 
-        self.desired_age_from = age_from
-        self.desired_age_to = age_to
+        items_of_request = 0
+        return VkMACHINERY.send_request(method='users.get', params_of_query=params_of_request)['response'][
+            items_of_request]
 
-        params_of_request = {'count': 30,
-                             'fields': f'sex={(self.sex % 2) + 1},city={self.city},age_from={age_from},age_to={age_to}'}
-        params_of_request.update(self.default_params_of_request)
+    def update_search_offset(self):
+        with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
+            with conn.cursor() as cur:
+                self.offset_for_search += self.count_for_search
+                cur.execute("""UPDATE _tinder_service_information SET current_offset=(%s) WHERE id=(%s)""",
+                            (self.offset_for_search, '1'))  # this table will have only 1 row so id equal "1"
+        print('I DEAD')
 
-        return VkMACHINERY.send_request(method='users.search', params_of_query=params_of_request)[
-            'response']['items']
+    def get_search_config_obj(self):
+        return {'count_for_search': self.count_for_search,
+                'sex': self.sex,
+                'city': self.city,
+                'desired_age_from': self.desired_age_from,
+                'desired_age_to': self.desired_age_to,
+                'offset_for_search': self.offset_for_search}
+
+    def _get_headers(self):
+        return self.request_header_for_main_user
 
     def __repr__(self):
         return f'MainUser: name {self.first_name}'
