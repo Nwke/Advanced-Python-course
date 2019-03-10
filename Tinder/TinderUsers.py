@@ -17,7 +17,7 @@ class TinderUser:
     Common user class in the application
     """
 
-    # todo: there is a memory leak (if use this app much time)
+    # todo: there is a memory leak (if use this app too much time)
     _instances_of_tinder_user = []
 
     def __init__(self, init_obj: Dict = None):
