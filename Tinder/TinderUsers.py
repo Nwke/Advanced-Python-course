@@ -6,23 +6,27 @@ from Tinder.config_app import SERVICE_TOKEN, VERSION_VK_API
 from Tinder.config_app import DB_USER, DB_NAME
 
 from datetime import datetime
-from typing import Dict, List, NoReturn
+from typing import Dict, List, Union
 
 import psycopg2 as pg
 import re
 
 
 class TinderUser:
+    """
+    Common user class in the application
+    """
+
     # todo: there is a memory leak (if use this app much time)
     _instances_of_tinder_user = []
 
     def __init__(self, init_obj: Dict = None):
         self._instances_of_tinder_user.append(self)
         self._SERVICE_TOKEN = SERVICE_TOKEN
+        self._tinder_user_id = None
 
         self.first_name = None
         self.last_name = None
-        self.tinder_user_id = None
 
         self.sex = None
         self.age = None
@@ -39,7 +43,7 @@ class TinderUser:
 
         self.score = 0
 
-        self.request_header_for_tinder_user = {
+        self._request_header_for_tinder_user = {
             'access_token': self._SERVICE_TOKEN,
             'v': VERSION_VK_API,
         }
@@ -47,15 +51,15 @@ class TinderUser:
         if init_obj is not None:
             self.init_tinder_user_from_obj(init_obj)
 
-    def init_tinder_user_from_obj(self, obj: Dict) -> NoReturn:
+    def init_tinder_user_from_obj(self, obj: Dict) -> None:
         """
         initialize instance of Tinder User from received data of type of dict
 
         :param obj: Dict which includes data for initialization instance of TinderUser
         """
 
-        self.tinder_user_id = obj['id']
-        self.request_header_for_tinder_user['user_id'] = self.tinder_user_id
+        self._tinder_user_id = obj['id']
+        self._request_header_for_tinder_user['user_id'] = self._tinder_user_id
 
         self.first_name = obj['first_name']
         self.last_name = obj.get('last_name', 'closed')
@@ -66,8 +70,8 @@ class TinderUser:
         self.books = obj.get('books', 'closed')
         self.music = obj.get('music', 'closed')
 
-        self.friends = self.get_friend_list(request_header=self.request_header_for_tinder_user)
-        self.groups = self.get_group_list(request_header=self.request_header_for_tinder_user)
+        self.friends = self.get_friend_list(request_header=self._request_header_for_tinder_user)
+        self.groups = self.get_group_list(request_header=self._request_header_for_tinder_user)
 
         try:
             self.age = int(int(datetime.now().year)) - int(obj['bdate'][-4:])
@@ -96,7 +100,7 @@ class TinderUser:
         return VkMACHINERY.send_request(method='users.getSubscriptions',
                                         params_of_query=request_header)['response']['groups']['items']
 
-    def calculate_matching_score(self, target_user) -> NoReturn:
+    def calculate_matching_score(self, target_user) -> None:
         """
         Calculate matching score and put it in field of instance
 
@@ -138,8 +142,8 @@ class TinderUser:
         :param other_music: String with music of another user
         :return: score of similarity
         """
-        other_music = set(other_music.split())
-        other_music2 = set(self.music.split())
+        other_music = {word[:-2] for word in set(other_music.split())}
+        other_music2 = {word[:-2] for word in set(self.music.split())}
         return POINT_OF_MUSIC * len(other_music.intersection(other_music2))
 
     def _get_points_of_books(self, other_books: str) -> float:
@@ -150,8 +154,8 @@ class TinderUser:
         :return: score of similarity
         """
 
-        other_books = set(other_books.split())
-        other_books2 = set(self.books.split())
+        other_books = {book[:-2] for book in set(other_books.split())}
+        other_books2 = {other_book[:-2] for other_book in set(self.books.split())}
         return POINT_OF_BOOKS * len(other_books.intersection(other_books2))
 
     def _get_points_of_age(self, age_from: int, age_to: int) -> float:
@@ -168,13 +172,13 @@ class TinderUser:
         else:
             return 0.0
 
-    def _get_photos_of_user(self) -> NoReturn:
+    def _get_photos_of_user(self) -> None:
         """
         Get photos of particular user by id with VK API and put they in field of instance
         """
 
-        params = {'owner_id': self.tinder_user_id, 'album_id': 'profile', 'extended': 1}
-        params.update(self.request_header_for_tinder_user)
+        params = {'owner_id': self._tinder_user_id, 'album_id': 'profile', 'extended': 1}
+        params.update(self._request_header_for_tinder_user)
 
         photos = VkMACHINERY.send_request(method='photos.get', params_of_query=params)['response']['items']
         photos.sort(key=lambda photo: int(photo['likes']['count']))
@@ -195,7 +199,7 @@ class TinderUser:
         return {
             'first_name': self.first_name,
             'last_name': self.last_name,
-            'vk_link': f'https://vk.com/id{self.tinder_user_id}',
+            'vk_link': f'https://vk.com/id{self._tinder_user_id}',
             'photos': self.top3_photos
         }
 
@@ -211,54 +215,57 @@ class TinderUser:
         return cls._instances_of_tinder_user[-quantity:]
 
     def __repr__(self):
-        return f'Tinder User: name: {self.first_name}, uid: {self.tinder_user_id}'
+        return f'Tinder User: name: {self.first_name}, uid: {self._tinder_user_id}'
 
 
 class MainUser(TinderUser):
+    """
+    The main class in our application. For it, we will search for similar users, etc.
+    """
 
     def __init__(self, count_for_search: int = 15):
         super().__init__()
+        self._user_token = None
 
-        self.user_token = None
         self.screen_name = None
         self.desired_age_from = None
         self.desired_age_to = None
         self.count_for_search = count_for_search
         self.offset_for_search = None
 
-        self.request_header_for_main_user = {
-            'access_token': self.user_token,
+        self._request_header_for_main_user = {
+            'access_token': self._user_token,
             'v': VERSION_VK_API,
 
         }
 
         self._init_main_user()
 
-    def _init_main_user(self) -> NoReturn:
+    def _init_main_user(self) -> None:
         """
         It initializes instance of Main user
         """
 
-        self.user_token = self._get_access_token()
-        self.request_header_for_main_user['access_token'] = self.user_token
+        self._user_token = self._get_access_token()
+        self._request_header_for_main_user['access_token'] = self._user_token
 
         profile_info = self._get_profile_info()
 
         self._init_default_params(profile_info)
         self._set_additional_params()
 
-    def _get_access_token(self) -> NoReturn:
+    def _get_access_token(self) -> Union[str, bytes]:
         """
         It get users's token and put it in field of instance
         """
 
         link_after_oauth = input(f'1.Follow this link: {OAUTH_LINK}\n'
                                  '2.Confirm the intentions\n'
-                                 '3.Copy the address of the browser string and paste it here, please')
+                                 '3.Copy the address of the browser string and paste it here, please: ')
 
         return re.sub(reg_exp_pattern_access_token, r'\3', link_after_oauth)
 
-    def _set_additional_params(self) -> NoReturn:
+    def _set_additional_params(self) -> None:
         """
         It ask desired age and put current offset to db. It use this method like additional initialization of instance
         """
@@ -272,7 +279,7 @@ class MainUser(TinderUser):
                 cur.execute("""SELECT current_offset FROM _tinder_service_information WHERE id=(%s)""", ('1',))
                 self.offset_for_search = int(cur.fetchone()[0])
 
-    def _init_default_params(self, profile_info: Dict) -> NoReturn:
+    def _init_default_params(self, profile_info: Dict) -> None:
         """
         This is an auxiliary method for the main method with initialization.
         Initializes additional parameters of instance
@@ -280,7 +287,7 @@ class MainUser(TinderUser):
         :param profile_info: Dict with data for initialization of instance
         """
 
-        self.tinder_user_id = profile_info['id']
+        self._tinder_user_id = profile_info['id']
         self.first_name = profile_info['first_name']
         self.last_name = profile_info['last_name']
         self.sex = profile_info['sex']
@@ -290,8 +297,8 @@ class MainUser(TinderUser):
         self.music = profile_info['music']
         self.books = profile_info['books']
 
-        self.friends = self.get_friend_list(request_header=self.request_header_for_main_user)
-        self.groups = self.get_group_list(request_header=self.request_header_for_main_user)
+        self.friends = self.get_friend_list(request_header=self._request_header_for_main_user)
+        self.groups = self.get_group_list(request_header=self._request_header_for_main_user)
 
     def _get_profile_info(self) -> Dict:
         """
@@ -301,13 +308,13 @@ class MainUser(TinderUser):
         """
 
         params_of_request = {'fields': 'sex,bdate,city,country,activities,interests,music,movies,books'}
-        params_of_request.update(self.request_header_for_main_user)
+        params_of_request.update(self._request_header_for_main_user)
 
         items_of_request = 0
         return VkMACHINERY.send_request(method='users.get',
                                         params_of_query=params_of_request)['response'][items_of_request]
 
-    def update_search_offset(self) -> NoReturn:
+    def update_search_offset(self) -> None:
         """
         Update current offset for search in database
         """
@@ -336,7 +343,7 @@ class MainUser(TinderUser):
         :return:
         """
 
-        return self.request_header_for_main_user
+        return self._request_header_for_main_user
 
     def __repr__(self):
         return f'MainUser: name {self.first_name}'

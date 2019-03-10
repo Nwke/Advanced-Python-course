@@ -5,16 +5,17 @@ from Tinder.config_app import STANDARD_SEARCH_OFFSET
 from Tinder.config_app import PATH_TO_OUTPUT_RESULT
 
 from pprint import pprint
-from typing import Dict, List, NoReturn
+from typing import Dict, List
 
 import psycopg2 as pg
 import json
 
 
-def create_db() -> NoReturn:
+def create_db() -> None:
     """
     Create standard databases for the Tinder App
     """
+
     with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
         with conn.cursor() as cur:
             cur.execute("""CREATE TABLE IF NOT EXISTS tinder_result (
@@ -38,10 +39,11 @@ def create_db() -> NoReturn:
                         current_offset INTEGER);""")
 
 
-def init_db() -> NoReturn:
+def init_db() -> None:
     """
-    Init standard databases for the Tinder App
+    Initialize standard databases for the Tinder App
     """
+
     with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -50,11 +52,13 @@ def init_db() -> NoReturn:
                 ('1', STANDARD_SEARCH_OFFSET))  # we will have only 1 row in this table
 
 
-def insert_result_to_db(liked_tinder_users: List[Dict]) -> NoReturn:
+def insert_result_to_db(liked_tinder_users: List[Dict]) -> None:
     """
     Insert result the result of the Tinder App
-    :param liked_tinder_users: List of dict with tinder user data
+
+    :param liked_tinder_users: List of dict of tinder user data
     """
+
     with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
         with conn.cursor() as cur:
             for user in liked_tinder_users:
@@ -63,12 +67,14 @@ def insert_result_to_db(liked_tinder_users: List[Dict]) -> NoReturn:
                             (user['first_name'], user['last_name'], user['vk_link']))
 
 
-def add_to_black_list(person: Dict) -> NoReturn:
+def _add_to_black_list(person: Dict) -> None:
     """
+    Add person to blacklist in database
 
-    :param person: Dict with user data
+    :param person: Dict of user data
     :return:
     """
+
     with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
         with conn.cursor() as cur:
             cur.execute("""INSERT INTO tinder_black_list (first_name, last_name, vk_link) VALUES (%s, %s, %s)
@@ -78,7 +84,13 @@ def add_to_black_list(person: Dict) -> NoReturn:
     print(f'person {person["first_name"]} added to black list')
 
 
-def add_to_favorite_list(person):
+def _add_to_favorite_list(person: Dict) -> None:
+    """
+    Add person to favorite list in database
+
+    :param person: Dict of user data
+    """
+
     with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
         with conn.cursor() as cur:
             cur.execute("""SELECT id FROM tinder_result WHERE vk_link=%s""", (person['vk_link'],))
@@ -90,7 +102,13 @@ def add_to_favorite_list(person):
             print(f'person {person["first_name"]} added to favorite list')
 
 
-def tact_of_app(main_user):
+def tact_of_app(main_user) -> List[Dict]:
+    """
+    Do one round of the Tinder app.
+
+    :param main_user: Instance of class MainUser(TinderUser)
+    """
+
     list_tinder_users = []
 
     for tinder_user in TinderUser.get_tinder_users_for_one_round(main_user.count_for_search):
@@ -111,7 +129,13 @@ def tact_of_app(main_user):
     return result_of_matching
 
 
-def output_tinder_users(data_of_top10_matching):
+def output_tinder_users(data_of_top10_matching: List[Dict]) -> None:
+    """
+    Output data of matched Tinder Users to stdout (Name, Photos, ...)
+
+    :param data_of_top10_matching: List of data of Tinder Users
+    """
+
     for ind, data_of_user in enumerate(data_of_top10_matching):
         photos = ''
 
@@ -122,10 +146,43 @@ def output_tinder_users(data_of_top10_matching):
               f'vk:{data_of_user["vk_link"]}, {photos}')
 
 
-def interface_for_black_list(data_of_persons):
+def interface_for_black_list(data_of_persons: List[Dict]) -> None:
+    """
+    Add chosen body to blacklist
+
+    :param data_of_persons: List of data of Tinder Users
+    """
+
+    explain_line = 'Get number of person why you want to add to black list'
+    chosen_id = _interface_to_add_list(data_of_persons, explain_line)
+
+    _add_to_black_list(data_of_persons[chosen_id])
+
+
+def interface_for_favorite_list(data_of_persons: List[Dict]) -> None:
+    """
+    Add person to favorite list in database
+
+    :param data_of_persons: a list of data of Tinder Users from which we will choose who to add to the favorite list
+    """
+
+    explain_line = 'Get number of person why you want to add to favorite list'
+    chosen_id = _interface_to_add_list(data_of_persons, explain_line)
+
+    _add_to_favorite_list(data_of_persons[chosen_id])
+
+
+def _interface_to_add_list(data_of_persons: List[Dict], explanatory_line: str) -> int:
+    """
+    Help function for function with "interface_for_*_list"
+
+    :param data_of_persons: List of data of Tinder Users from which we will chose one
+    :param explanatory_line: A string that explains what we will do with the selected person.
+    """
+
     enumerated_person = list(enumerate(data_of_persons))
     while True:
-        chosen_id = input(f'Get number of person why you want to add to black list '
+        chosen_id = input(f'{explanatory_line} '
                           f'from {enumerated_person[0][0] + 1} to {enumerated_person[-1][0] + 1}, please: ')
         try:
             chosen_id = int(chosen_id) - 1
@@ -135,31 +192,17 @@ def interface_for_black_list(data_of_persons):
         except ValueError:
             print('You did wrong, repeat please')
 
-    add_to_black_list(data_of_persons[chosen_id])
+    return chosen_id
 
 
-def interface_for_favorite_list(data_of_persons):
-    enumerated_person = list(enumerate(data_of_persons))
-    while True:
-        chosen_id = input(f'Get number of person why you want to add to favorite list '
-                          f'from {enumerated_person[0][0] + 1} to {enumerated_person[-1][0] + 1}, please: ')
-        try:
-            chosen_id = int(chosen_id) - 1
-            if chosen_id > enumerated_person[-1][0] or chosen_id < enumerated_person[0][0]:
-                raise ValueError
-            break
-        except ValueError:
-            print('You did wrong, repeat please')
+def output_result_to_json(data_of_top10_matching: List[Dict]) -> None:
+    """
+    Save result of last search to output.json in current working directory
 
-    add_to_favorite_list(data_of_persons[chosen_id])
+    :param data_of_top10_matching: List of data of Tinder users
+    """
 
-
-def print_output_of_app(data):
-    pprint(json.dumps(data))
-
-
-def output_result_to_json(data_of_top10_matching):
-    with open(PATH_TO_OUTPUT_RESULT, encoding='utf8', mode='a') as json_output:
+    with open(PATH_TO_OUTPUT_RESULT, encoding='utf8', mode='w') as json_output:
         json.dump(data_of_top10_matching, json_output, indent=2)
 
 
@@ -199,7 +242,7 @@ def run_app():
                 elif command == 3:
                     interface_for_black_list(data_of_top10_matching)
                 elif command == 4:
-                    print_output_of_app(data_of_top10_matching)
+                    pprint(json.dumps(data_of_top10_matching))
                 elif command == 5:
                     output_tinder_users(data_of_top10_matching)
                 elif command == 6:

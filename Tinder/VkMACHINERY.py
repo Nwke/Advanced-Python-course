@@ -20,7 +20,7 @@ class VkMACHINERY:
     @staticmethod
     def users_search(config: Dict[str, StrOrInt], headers: Dict) -> List[Dict]:
         """
-        Send request of user.search to VK API and return its result
+        Send request user.search to VK API and return its result
 
         :param config: config which use for search similar people
         :param headers: header for send request to vk API (like token and so on)
