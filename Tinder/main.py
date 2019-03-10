@@ -117,6 +117,7 @@ def tact_of_app(main_user) -> List[Dict]:
     list_tinder_users.sort(key=lambda usr: usr.score)
 
     top10_tinder_users = list_tinder_users[-11:]
+    
     # that problem is on the vk side
     # top10.pop(-1)  # we found our self when use vk method users.search
 
