@@ -10,7 +10,6 @@ from typing import Dict, List
 import psycopg2 as pg
 import json
 
-
 def create_db() -> None:
     """
     Create standard databases for the Tinder App
