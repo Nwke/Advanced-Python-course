@@ -47,11 +47,11 @@ class TestVKMACHINERY(unittest.TestCase):
         except KeyError:
             # that is ok because this method send request to VK API and get error response
             pass
-        except (ValueError, TypeError):
-            self.fail("vk_machinery.get_processed_data_of_tinder_users() raised ExceptionType unexpectedly!")
+        except TypeError:
+            self.fail("vk_machinery.get_processed_data_of_tinder_users() raised TypeError unexpectedly!")
 
 
-class TestTinderUsers(unittest.TestCase):
+class TestTinderUser(unittest.TestCase):
     def test_init_tinder_user(self):
         with self.assertRaises(TypeError):
             t = TinderUser([])
@@ -61,7 +61,7 @@ class TestTinderUsers(unittest.TestCase):
         try:
             TinderUser()
         except BaseException:
-            self.fail("vk_machinery.get_processed_data_of_tinder_users() raised ExceptionType unexpectedly!")
+            self.fail("Create TinderUser() raised anyException unexpectedly!")
 
 
 if __name__ == '__main__':
