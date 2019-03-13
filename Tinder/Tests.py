@@ -15,7 +15,7 @@ class TestVKMACHINERY(unittest.TestCase):
                        'desired_age_from': 0,
                        'desired_age_to': 0,
                        'offset_for_search': 0}
-        self.headers = headers = {
+        self.headers = {
             'access_token': '2',
             'v': 0,
         }
@@ -39,15 +39,13 @@ class TestVKMACHINERY(unittest.TestCase):
 
     def test_search_user(self):
         try:
-            print('ok')
             main_user = MainUser(DEBUG=True)
-            print('ok2')
             main_user_config = main_user.get_search_config_obj()
             main_user_request_headers = main_user._get_headers()
 
             res = self.vk_machinery.users_search(main_user_config, main_user_request_headers)
-
-        except (ValueError, TypeError):
+            self.assertEqual(type(res), type(list()), 'Result must have a type like list')
+        except BaseException:
             self.fail("vk_machinery.users_search() raised ExceptionType unexpectedly!")
 
     def test_arguments_in_get_processed_data_of_tinder_users(self):
