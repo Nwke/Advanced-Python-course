@@ -10,6 +10,7 @@ from typing import Dict, List, Union
 
 import psycopg2 as pg
 import re
+import os
 
 
 class TinderUser:
@@ -223,7 +224,7 @@ class MainUser(TinderUser):
     The main class in our application. For it, we will search for similar users, etc.
     """
 
-    def __init__(self, count_for_search: int = 15):
+    def __init__(self, count_for_search: int = 15, DEBUG=False):
         super().__init__()
         self._user_token = None
 
@@ -239,40 +240,51 @@ class MainUser(TinderUser):
 
         }
 
-        self._init_main_user()
+        self._init_main_user(DEBUG=DEBUG)
 
-    def _init_main_user(self) -> None:
+    def _init_main_user(self, DEBUG) -> None:
         """
         It initializes instance of Main user
         """
 
-        self._user_token = self._get_access_token()
+        self._user_token = self._get_access_token(DEBUG=DEBUG)
         self._request_header_for_main_user['access_token'] = self._user_token
 
         profile_info = self._get_profile_info()
 
         self._init_default_params(profile_info)
-        self._set_additional_params()
+        self._set_additional_params(DEBUG=DEBUG)
 
-    def _get_access_token(self) -> Union[str, bytes]:
+    def _get_access_token(self, DEBUG) -> Union[str, bytes]:
         """
         It get users's token and put it in field of instance
         """
 
-        link_after_oauth = input(f'1.Follow this link: {OAUTH_LINK}\n'
-                                 '2.Confirm the intentions\n'
-                                 '3.Copy the address of the browser string and paste it here, please: ')
+        if DEBUG:
+            with open(os.path.join('data_for_test', 'data.txt'), encoding='utf8') as f:
+                link_after_oauth = f.readline()
 
-        return re.sub(reg_exp_pattern_access_token, r'\3', link_after_oauth)
+        else:
+            link_after_oauth = input(f'1.Follow this link: {OAUTH_LINK}\n'
+                                     '2.Confirm the intentions\n'
+                                     '3.Copy the address of the browser string and paste it here, please: ')
 
-    def _set_additional_params(self) -> None:
+        return re.sub(reg_exp_pattern_access_token, r'\3', link_after_oauth).strip()
+
+    def _set_additional_params(self, DEBUG) -> None:
         """
         It ask desired age and put current offset to db. It use this method like additional initialization of instance
         """
 
         print('There are search settings save only for session')
-        self.desired_age_from = int(input('Give number for desired min of search age: '))
-        self.desired_age_to = int(input('Give number for desired max of search age: '))
+        if DEBUG:
+            with open(os.path.join('data_for_test', 'data.txt'), encoding='utf8') as f:
+                f.readline()
+                self.desired_age_from = f.readline()
+                self.desired_age_to = f.readline()
+        else:
+            self.desired_age_from = int(input('Give number for desired min of search age: '))
+            self.desired_age_to = int(input('Give number for desired max of search age: '))
 
         with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
             with conn.cursor() as cur:
@@ -311,6 +323,7 @@ class MainUser(TinderUser):
         params_of_request.update(self._request_header_for_main_user)
 
         items_of_request = 0
+
         return VkMACHINERY.send_request(method='users.get',
                                         params_of_query=params_of_request)['response'][items_of_request]
 

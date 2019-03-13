@@ -33,6 +33,7 @@ class VkMACHINERY:
                              'offset': config['offset_for_search']}
 
         params_of_request.update(headers)
+        print('Waiting please.. We are searching')
 
         return VkMACHINERY.send_request(method='users.search', params_of_query=params_of_request)[
             'response']['items']
