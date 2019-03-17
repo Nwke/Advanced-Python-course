@@ -1,105 +1,13 @@
-from Tinder import VkMACHINERY
-from Tinder.TinderUsers import TinderUser, MainUser
-from Tinder.config_app import DB_USER, DB_NAME
-from Tinder.config_app import STANDARD_SEARCH_OFFSET
-from Tinder.config_app import PATH_TO_OUTPUT_RESULT
+from Tinder.vk.vk_machinery import VkMACHINERY
+from Tinder.tinder_users import TinderUser, MainUser
+from Tinder.config.config_app import PATH_TO_OUTPUT_RESULT
+from Tinder.database.db import create_db
+from Tinder.database.db import insert_result_to_db, add_to_black_list, add_to_favorite_list
 
 from pprint import pprint
 from typing import Dict, List
 
-import psycopg2 as pg
 import json
-
-
-def create_db() -> None:
-    """
-    Create standard databases for the Tinder App
-    """
-
-    with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
-        with conn.cursor() as cur:
-            cur.execute("""CREATE TABLE IF NOT EXISTS tinder_result (
-                        id serial PRIMARY KEY,
-                        first_name varchar(50) NOT NULL,
-                        last_name varchar(50) NOT NULL,
-                        vk_link varchar(100) UNIQUE NOT NULL);""")
-
-            cur.execute("""CREATE TABLE IF NOT EXISTS tinder_black_list (
-            id serial PRIMARY KEY,
-            first_name varchar(50),
-            last_name varchar(50),
-            vk_link varchar(100) UNIQUE NOT NULL);""")
-
-            cur.execute("""CREATE TABLE IF NOT EXISTS tinder_favorite_list (
-                        id serial PRIMARY KEY,
-                        second_id INTEGER NOT NULL REFERENCES tinder_result(id));""")
-
-            cur.execute("""CREATE TABLE IF NOT EXISTS _tinder_service_information(
-                        id INTEGER PRIMARY KEY,
-                        current_offset INTEGER);""")
-
-
-def init_db() -> None:
-    """
-    Initialize standard databases for the Tinder App
-    """
-
-    with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """INSERT INTO _tinder_service_information (id, current_offset) VALUES (%s, %s)
-                    ON CONFLICT  (id) DO NOTHING """,
-                ('1', STANDARD_SEARCH_OFFSET))  # we will have only 1 row in this table
-
-
-def insert_result_to_db(liked_tinder_users: List[Dict]) -> None:
-    """
-    Insert result the result of the Tinder App
-
-    :param liked_tinder_users: List of dict of tinder user data
-    """
-
-    with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
-        with conn.cursor() as cur:
-            for user in liked_tinder_users:
-                cur.execute("""INSERT INTO tinder_result (first_name, last_name, vk_link) 
-                                VALUES (%s, %s, %s) ON CONFLICT (vk_link) DO NOTHING""",
-                            (user['first_name'], user['last_name'], user['vk_link']))
-
-
-def _add_to_black_list(person: Dict) -> None:
-    """
-    Add person to blacklist in database
-
-    :param person: Dict of user data
-    :return:
-    """
-
-    with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
-        with conn.cursor() as cur:
-            cur.execute("""INSERT INTO tinder_black_list (first_name, last_name, vk_link) VALUES (%s, %s, %s)
-                        ON CONFLICT (vk_link) DO NOTHING""",
-                        (person['first_name'], person['last_name'], person['vk_link'],))
-
-    print(f'person {person["first_name"]} added to black list')
-
-
-def _add_to_favorite_list(person: Dict) -> None:
-    """
-    Add person to favorite list in database
-
-    :param person: Dict of user data
-    """
-
-    with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
-        with conn.cursor() as cur:
-            cur.execute("""SELECT id FROM tinder_result WHERE vk_link=%s""", (person['vk_link'],))
-            id_user_from_table_tinder_result = cur.fetchone()[0]
-
-            cur.execute("""INSERT INTO tinder_favorite_list (second_id) VALUES (%s)""",
-                        (id_user_from_table_tinder_result,))
-
-            print(f'person {person["first_name"]} added to favorite list')
 
 
 def tact_of_app(main_user) -> List[Dict]:
@@ -157,7 +65,7 @@ def interface_for_black_list(data_of_persons: List[Dict]) -> None:
     explain_line = 'Get number of person why you want to add to black list'
     chosen_id = _interface_to_add_list(data_of_persons, explain_line)
 
-    _add_to_black_list(data_of_persons[chosen_id])
+    add_to_black_list(data_of_persons[chosen_id])
 
 
 def interface_for_favorite_list(data_of_persons: List[Dict]) -> None:
@@ -170,7 +78,7 @@ def interface_for_favorite_list(data_of_persons: List[Dict]) -> None:
     explain_line = 'Get number of person why you want to add to favorite list'
     chosen_id = _interface_to_add_list(data_of_persons, explain_line)
 
-    _add_to_favorite_list(data_of_persons[chosen_id])
+    add_to_favorite_list(data_of_persons[chosen_id])
 
 
 def _interface_to_add_list(data_of_persons: List[Dict], explanatory_line: str) -> int:
@@ -258,5 +166,4 @@ def run_app():
 
 if __name__ == '__main__':
     create_db()
-    init_db()
     run_app()

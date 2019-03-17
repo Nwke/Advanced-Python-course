@@ -1,14 +1,16 @@
-from Tinder import VkMACHINERY
-from Tinder.TinderUsers import TinderUser, MainUser
+from Tinder.vk.vk_machinery import VkMACHINERY
+from Tinder.tinder_users import TinderUser, MainUser
+from Tinder.config.config_app import ROOT_PROJECT
 
-import sys
 import unittest
+import os
+
+os.chdir(ROOT_PROJECT)
 
 
 class TestVKMACHINERY(unittest.TestCase):
     def setUp(self):
         self.vk_machinery = VkMACHINERY()
-        self.old_stdin = sys.stdin
         self.config = {'count_for_search': 0,
                        'sex': 0,
                        'city': 0,
@@ -30,20 +32,22 @@ class TestVKMACHINERY(unittest.TestCase):
             self.vk_machinery.users_search(None, headers=self.headers)
 
         try:
-            self.vk_machinery.users_search(self.config, self.headers)
+            print(self.vk_machinery.users_search(self.config, self.headers))
         except KeyError:
             # that is ok because this method send request to VK API and get error response
             pass
         except (ValueError, TypeError):
-            self.fail("vk_machinery.users_search() raised ExceptionType unexpectedly!")
+            self.fail("vk_machinery.users_search() "
+                      "in method test_arguments_in_users_search raised ExceptionType unexpectedly!")
 
     def test_search_user(self):
         try:
-            main_user = MainUser(DEBUG=True)
+            main_user = MainUser(debug=True)
             main_user_config = main_user.get_search_config_obj()
             main_user_request_headers = main_user._get_headers()
 
             res = self.vk_machinery.users_search(main_user_config, main_user_request_headers)
+
             self.assertEqual(type(res), type(list()), 'Result must have a type like list')
         except BaseException:
             self.fail("vk_machinery.users_search() raised ExceptionType unexpectedly!")
@@ -65,10 +69,10 @@ class TestVKMACHINERY(unittest.TestCase):
 class TestTinderUser(unittest.TestCase):
     def test_init_tinder_user(self):
         with self.assertRaises(TypeError):
-            t = TinderUser([])
-            t = TinderUser('')
-            t = TinderUser(5)
-            t = TinderUser(None)
+            TinderUser([])
+            TinderUser('')
+            TinderUser(5)
+            TinderUser(None)
         try:
             TinderUser()
         except BaseException:

@@ -1,16 +1,16 @@
-from Tinder import VkMACHINERY
+from Tinder.vk.vk_machinery import VkMACHINERY
 from Tinder.utils import reg_exp_pattern_access_token
-from Tinder.config_app import POINT_OF_AGE, POINT_OF_MUSIC, POINT_OF_BOOKS, \
-    POINT_OF_FRIEND_UNIT, POINT_OF_GROUP_UNIT, OAUTH_LINK
-from Tinder.config_app import SERVICE_TOKEN, VERSION_VK_API
-from Tinder.config_app import DB_USER, DB_NAME
+from Tinder.config.config_app import POINT_OF_AGE, POINT_OF_MUSIC, POINT_OF_BOOKS, \
+    POINT_OF_FRIEND_UNIT, POINT_OF_GROUP_UNIT
+from Tinder.config.config_app import SERVICE_TOKEN, VERSION_VK_API, DB_USER, DB_NAME, PATH_TO_DATA_FOR_TEST, OAUTH_LINK
+
+from Tinder.database.db import init_user_in_last_run_state
 
 from datetime import datetime
 from typing import Dict, List, Union
 
 import psycopg2 as pg
 import re
-import os
 
 
 class TinderUser:
@@ -224,7 +224,7 @@ class MainUser(TinderUser):
     The main class in our application. For it, we will search for similar users, etc.
     """
 
-    def __init__(self, count_for_search: int = 15, DEBUG=False):
+    def __init__(self, count_for_search: int = 15, debug=False):
         super().__init__()
         self._user_token = None
 
@@ -232,7 +232,7 @@ class MainUser(TinderUser):
         self.desired_age_from = None
         self.desired_age_to = None
         self.count_for_search = count_for_search
-        self.offset_for_search = None
+        self.offset_for_search = 0
 
         self._request_header_for_main_user = {
             'access_token': self._user_token,
@@ -240,56 +240,89 @@ class MainUser(TinderUser):
 
         }
 
-        self._init_main_user(DEBUG=DEBUG)
+        self._init_main_user(debug=debug)
 
-    def _init_main_user(self, DEBUG) -> None:
+    def _init_main_user(self, debug) -> None:
         """
         It initializes instance of Main user
         """
 
-        self._user_token = self._get_access_token(DEBUG=DEBUG)
+        self._user_token = self._get_access_token(debug=debug)
         self._request_header_for_main_user['access_token'] = self._user_token
 
         profile_info = self._get_profile_info()
-
         self._init_default_params(profile_info)
-        self._set_additional_params(DEBUG=DEBUG)
 
-    def _get_access_token(self, DEBUG) -> Union[str, bytes]:
+        init_user_in_last_run_state(self._tinder_user_id)
+        self._set_additional_params(debug=debug)
+
+    def _get_access_token(self, debug) -> Union[str, bytes]:
         """
         It get users's token and put it in field of instance
         """
 
-        if DEBUG:
-            with open(os.path.join('data_for_test', 'data.txt'), encoding='utf8') as f:
+        if debug:
+            with open(PATH_TO_DATA_FOR_TEST, encoding='utf8') as f:
                 link_after_oauth = f.readline()
-
         else:
             link_after_oauth = input(f'1.Follow this link: {OAUTH_LINK}\n'
                                      '2.Confirm the intentions\n'
                                      '3.Copy the address of the browser string and paste it here, please: ')
 
-        return re.sub(reg_exp_pattern_access_token, r'\3', link_after_oauth).strip()
+        return re.match(reg_exp_pattern_access_token, link_after_oauth).group('user_token').strip()
 
-    def _set_additional_params(self, DEBUG) -> None:
+    def get_desired_age_from_from_db(self):
+        """
+        get the "desired_age_from"  from the last run of the app
+        """
+
+        with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""SELECT last_desired_age_from FROM last_run_state WHERE vk_id=(%s)""",
+                            (self._tinder_user_id,))
+
+                return cur.fetchone()[0]
+
+    def get_desired_age_to_from_db(self) -> int:
+        """
+        get the "desired_age_to" from the last run of the app
+        """
+
+        with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""SELECT last_desired_age_from FROM last_run_state WHERE vk_id=(%s)""",
+                            (self._tinder_user_id,))
+
+                return cur.fetchone()[0]
+
+    def _set_additional_params(self, debug) -> None:
         """
         It ask desired age and put current offset to db. It use this method like additional initialization of instance
         """
 
         print('There are search settings save only for session')
-        if DEBUG:
-            with open(os.path.join('data_for_test', 'data.txt'), encoding='utf8') as f:
+        if debug:
+            with open(PATH_TO_DATA_FOR_TEST, encoding='utf8') as f:
                 f.readline()
                 self.desired_age_from = f.readline()
                 self.desired_age_to = f.readline()
         else:
-            self.desired_age_from = int(input('Give number for desired min of search age: '))
-            self.desired_age_to = int(input('Give number for desired max of search age: '))
+            self.desired_age_from = input('Give number for desired min of search age: ')
+            self.desired_age_to = input('Give number for desired max of search age: ')
+
+            if not self.desired_age_from:
+                self.desired_age_from = self.get_desired_age_from_from_db()
+            if not self.desired_age_to:
+                self.desired_age_to = self.get_desired_age_to_from_db()
+
+            self.desired_age_from = int(self.desired_age_from)
+            self.desired_age_to = int(self.desired_age_to)
 
         with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
             with conn.cursor() as cur:
-                cur.execute("""SELECT current_offset FROM _tinder_service_information WHERE id=(%s)""", ('1',))
-                self.offset_for_search = int(cur.fetchone()[0])
+                cur.execute("""SELECT current_offset FROM last_run_state WHERE vk_id=(%s)""", (self._tinder_user_id,))
+
+                self.offset_for_search = (cur.fetchone()[0])
 
     def _init_default_params(self, profile_info: Dict) -> None:
         """
@@ -335,15 +368,16 @@ class MainUser(TinderUser):
         with pg.connect(dbname=DB_NAME, user=DB_USER) as conn:
             with conn.cursor() as cur:
                 self.offset_for_search += self.count_for_search
-                cur.execute("""UPDATE _tinder_service_information SET current_offset=(%s) WHERE id=(%s)""",
-                            (self.offset_for_search, '1'))  # this table will have only 1 row so id equal "1"
+                cur.execute("""UPDATE last_run_state SET current_offset=(%s) WHERE vk_id=(%s)""",
+                            (int(self.offset_for_search), int(self._tinder_user_id)))
 
     def get_search_config_obj(self) -> Dict:
         """
         It gives config of instance
         """
 
-        return {'count_for_search': self.count_for_search,
+        return {'vk_id': self._tinder_user_id,
+                'count_for_search': self.count_for_search,
                 'sex': self.sex,
                 'city': self.city,
                 'desired_age_from': self.desired_age_from,

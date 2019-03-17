@@ -1,3 +1,0 @@
-https://oauth.vk.com/blank.html#access_token=1e0511e6f9851e3e073debdffec05a68835f87ed3c9da57cd234bf97e9bc0852ffe9eca45ee47d7cbf430&expires_in=86400&user_id=211809712
-1
-25

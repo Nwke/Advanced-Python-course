@@ -1,11 +1,12 @@
-from Tinder.config_app import SERVICE_TOKEN, VERSION_VK_API
-from Tinder.utils import StrOrInt
+from Tinder.config.config_app import SERVICE_TOKEN, VERSION_VK_API
+from Tinder.utils import StrOrInt, retry_on_error, RetryException
 from typing import Dict, List
 import requests
 
 
 class VkMACHINERY:
     @staticmethod
+    @retry_on_error
     def send_request(method: str, params_of_query: Dict[str, str] = None):
         """
         Send request to the VK API and return a result
@@ -14,6 +15,14 @@ class VkMACHINERY:
         :param dict params_of_query: additional params for request
         :return: result of requests.get(...).json()
         """
+
+        req = requests.get(f'https://api.vk.com/method/{method}', params=params_of_query).json()
+
+        try:
+            if req['error']:
+                raise RetryException
+        except KeyError:
+            pass
 
         return requests.get(f'https://api.vk.com/method/{method}', params=params_of_query).json()
 
@@ -35,8 +44,9 @@ class VkMACHINERY:
         params_of_request.update(headers)
         print('Waiting please.. We are searching')
 
-        return VkMACHINERY.send_request(method='users.search', params_of_query=params_of_request)[
-            'response']['items']
+        # handling error # 6: too many request to VK API
+        req = VkMACHINERY.send_request(method='users.search', params_of_query=params_of_request)
+        return req['response']['items']
 
     @staticmethod
     def get_processed_data_of_tinder_users(searched_users: List) -> List[Dict]:
