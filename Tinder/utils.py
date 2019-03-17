@@ -24,7 +24,7 @@ def retry_on_error(arg: int = 5):
                 except RetryException:
                     print('Please wait. There was an error, we are re-sending your request')
                     if countdown <= 0:
-                        raise
+                        break
                     countdown -= 1
                     time.sleep(1)
 

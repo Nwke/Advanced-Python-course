@@ -13,7 +13,7 @@ DB_USER = 'tinderuser'
 
 PATH_TO_OUTPUT_RESULT = 'output.json'
 PATH_TO_DATA_FOR_TEST = os.path.join('tests', 'data_for_test.txt')
-ROOT_PROJECT = os.path.dirname(os.path.abspath(__file__))
+ROOT_PROJECT = os.path.join(os.path.dirname(os.path.abspath(os.pardir)), 'Tinder')
 
 STANDARD_SEARCH_OFFSET = 30
 

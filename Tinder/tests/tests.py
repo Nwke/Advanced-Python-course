@@ -25,21 +25,6 @@ class TestVKMACHINERY(unittest.TestCase):
     def tearDown(self):
         self.vk_machinery = None
 
-    def test_arguments_in_users_search(self):
-        with self.assertRaises(ValueError):
-            self.vk_machinery.users_search(self.config, headers='2')
-        with self.assertRaises(TypeError):
-            self.vk_machinery.users_search(None, headers=self.headers)
-
-        try:
-            print(self.vk_machinery.users_search(self.config, self.headers))
-        except KeyError:
-            # that is ok because this method send request to VK API and get error response
-            pass
-        except (ValueError, TypeError):
-            self.fail("vk_machinery.users_search() "
-                      "in method test_arguments_in_users_search raised ExceptionType unexpectedly!")
-
     def test_search_user(self):
         try:
             main_user = MainUser(debug=True)

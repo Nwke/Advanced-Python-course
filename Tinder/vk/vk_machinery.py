@@ -17,7 +17,6 @@ class VkMACHINERY:
         """
 
         req = requests.get(f'https://api.vk.com/method/{method}', params=params_of_query).json()
-
         try:
             if req['error']:
                 raise RetryException
