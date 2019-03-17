@@ -6,7 +6,7 @@ import requests
 
 class VkMACHINERY:
     @staticmethod
-    @retry_on_error
+    @retry_on_error(5)
     def send_request(method: str, params_of_query: Dict[str, str] = None):
         """
         Send request to the VK API and return a result
