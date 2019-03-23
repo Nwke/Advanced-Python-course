@@ -1,2 +1,3 @@
 *.idea
 *__pycache*
+*data_for_test*

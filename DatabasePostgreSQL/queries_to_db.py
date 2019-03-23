@@ -40,7 +40,7 @@ def add_students(course_id, students):
             cur.execute("""select * from course where course.id = (%s)""", (str(course_id),))
             if cur.fetchone() is None:
                 message = f'course with id as {course_id} does not exist'
-                return (ERROR_COURSE_EXIST, message)
+                return ERROR_COURSE_EXIST, message
 
             for student in students:
                 id_last_student = add_student(student)
